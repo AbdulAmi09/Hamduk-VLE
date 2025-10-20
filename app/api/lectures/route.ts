@@ -1,29 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseServer } from "@/lib/supabase-server"
 
 export async function GET(request: NextRequest) {
   try {
     const courseId = request.nextUrl.searchParams.get("courseId")
+    const supabase = await getSupabaseServer()
 
-    const lectures = [
-      {
-        id: "lecture-1",
-        courseId,
-        title: "Cell Structure and Function",
-        videoUrl: "https://example.com/video1.mp4",
-        duration: 3600,
-        mandatory: true,
-        createdAt: "2024-11-01",
-      },
-      {
-        id: "lecture-2",
-        courseId,
-        title: "Photosynthesis",
-        videoUrl: "https://example.com/video2.mp4",
-        duration: 2700,
-        mandatory: false,
-        createdAt: "2024-11-05",
-      },
-    ]
+    if (!courseId) {
+      return NextResponse.json({ error: "Course ID required" }, { status: 400 })
+    }
+
+    const { data: lectures, error } = await supabase
+      .from("lectures")
+      .select("*")
+      .eq("course_id", courseId)
+      .order("scheduled_date", { ascending: true })
+
+    if (error) {
+      console.error("[v0] Lectures fetch error:", error)
+      return NextResponse.json({ error: "Failed to fetch lectures" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, lectures })
   } catch (error) {
@@ -34,16 +30,32 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { courseId, title, videoUrl, duration, mandatory } = await request.json()
+    const { course_id, title, description, video_url, duration_minutes, scheduled_date, is_mandatory } =
+      await request.json()
+    const supabase = await getSupabaseServer()
 
-    const newLecture = {
-      id: `lecture-${Date.now()}`,
-      courseId,
-      title,
-      videoUrl,
-      duration,
-      mandatory,
-      createdAt: new Date().toISOString(),
+    if (!course_id || !title) {
+      return NextResponse.json({ error: "Course ID and title required" }, { status: 400 })
+    }
+
+    const { data: newLecture, error } = await supabase
+      .from("lectures")
+      .insert([
+        {
+          course_id,
+          title,
+          description,
+          video_url,
+          duration_minutes,
+          scheduled_date,
+          is_mandatory,
+        },
+      ])
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to create lecture" }, { status: 400 })
     }
 
     return NextResponse.json({ success: true, lecture: newLecture })

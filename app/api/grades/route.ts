@@ -1,22 +1,36 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseServer } from "@/lib/supabase-server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { submissionId, score, feedback } = await request.json()
+    const { assessment_id, student_id, score, feedback } = await request.json()
+    const supabase = await getSupabaseServer()
 
-    if (!submissionId || score === undefined) {
-      return NextResponse.json({ error: "Submission ID and score required" }, { status: 400 })
+    if (!assessment_id || !student_id || score === undefined) {
+      return NextResponse.json({ error: "Assessment ID, student ID, and score required" }, { status: 400 })
     }
 
-    const grade = {
-      id: `grade-${Date.now()}`,
-      submissionId,
-      score,
-      feedback,
-      gradedAt: new Date().toISOString(),
-    }
+    const { data: grade, error } = await supabase
+      .from("grades")
+      .upsert(
+        [
+          {
+            assessment_id,
+            student_id,
+            score,
+            feedback,
+            graded_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "assessment_id,student_id" },
+      )
+      .select()
+      .single()
 
-    console.log("[v0] Grade submitted:", grade)
+    if (error) {
+      console.error("[v0] Grade submission error:", error)
+      return NextResponse.json({ error: "Failed to submit grade" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, grade })
   } catch (error) {
@@ -28,27 +42,31 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const studentId = request.nextUrl.searchParams.get("studentId")
+    const supabase = await getSupabaseServer()
 
-    const grades = [
-      {
-        id: "grade-1",
-        studentId,
-        assessmentTitle: "Midterm Exam",
-        score: 85,
-        totalPoints: 100,
-        feedback: "Great work! Well done on the exam.",
-        gradedAt: "2024-11-09T10:30:00Z",
-      },
-      {
-        id: "grade-2",
-        studentId,
-        assessmentTitle: "Assignment 1",
-        score: 45,
-        totalPoints: 50,
-        feedback: "Good effort. Review the concepts covered in lectures 3-5.",
-        gradedAt: "2024-11-08T14:15:00Z",
-      },
-    ]
+    if (!studentId) {
+      return NextResponse.json({ error: "Student ID required" }, { status: 400 })
+    }
+
+    const { data: grades, error } = await supabase
+      .from("grades")
+      .select(
+        `
+        id,
+        score,
+        feedback,
+        submitted_at,
+        graded_at,
+        assessments:assessment_id(title, total_points, type)
+      `,
+      )
+      .eq("student_id", studentId)
+      .order("graded_at", { ascending: false })
+
+    if (error) {
+      console.error("[v0] Grades fetch error:", error)
+      return NextResponse.json({ error: "Failed to fetch grades" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, grades })
   } catch (error) {

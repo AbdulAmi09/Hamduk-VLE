@@ -1,24 +1,34 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseServer } from "@/lib/supabase-server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { lectureId, studentId, watchPercentage, duration } = await request.json()
+    const { lecture_id, student_id, watched_duration_minutes } = await request.json()
+    const supabase = await getSupabaseServer()
 
-    if (!lectureId || !studentId) {
+    if (!lecture_id || !student_id) {
       return NextResponse.json({ error: "Lecture ID and Student ID required" }, { status: 400 })
     }
 
-    const attendance = {
-      id: `attendance-${Date.now()}`,
-      lectureId,
-      studentId,
-      watchPercentage,
-      duration,
-      marked: watchPercentage >= 75,
-      timestamp: new Date().toISOString(),
-    }
+    const { data: attendance, error } = await supabase
+      .from("attendance")
+      .upsert(
+        [
+          {
+            lecture_id,
+            student_id,
+            watched_duration_minutes,
+          },
+        ],
+        { onConflict: "lecture_id,student_id" },
+      )
+      .select()
+      .single()
 
-    console.log("[v0] Attendance recorded:", attendance)
+    if (error) {
+      console.error("[v0] Attendance error:", error)
+      return NextResponse.json({ error: "Failed to record attendance" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, attendance })
   } catch (error) {
@@ -30,27 +40,31 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const lectureId = request.nextUrl.searchParams.get("lectureId")
+    const supabase = await getSupabaseServer()
 
-    const attendanceRecords = [
-      {
-        id: "att-1",
-        lectureId,
-        studentId: "STU001",
-        studentName: "John Doe",
-        watchPercentage: 95,
-        marked: true,
-        timestamp: "2024-11-09T14:30:00Z",
-      },
-      {
-        id: "att-2",
-        lectureId,
-        studentId: "STU002",
-        studentName: "Jane Smith",
-        watchPercentage: 60,
-        marked: false,
-        timestamp: "2024-11-09T15:45:00Z",
-      },
-    ]
+    if (!lectureId) {
+      return NextResponse.json({ error: "Lecture ID required" }, { status: 400 })
+    }
+
+    const { data: attendanceRecords, error } = await supabase
+      .from("attendance")
+      .select(
+        `
+        id,
+        lecture_id,
+        student_id,
+        attended,
+        watched_duration_minutes,
+        marked_at,
+        users:student_id(full_name, email)
+      `,
+      )
+      .eq("lecture_id", lectureId)
+
+    if (error) {
+      console.error("[v0] Attendance fetch error:", error)
+      return NextResponse.json({ error: "Failed to fetch attendance" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, attendance: attendanceRecords })
   } catch (error) {

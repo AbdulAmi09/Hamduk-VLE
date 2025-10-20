@@ -1,31 +1,54 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseServer } from "@/lib/supabase-server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { courseId, method, email, emails } = await request.json()
+    const { course_id, method, email, emails } = await request.json()
+    const supabase = await getSupabaseServer()
 
-    if (!courseId) {
+    if (!course_id) {
       return NextResponse.json({ error: "Course ID required" }, { status: 400 })
     }
 
     if (method === "manual" && email) {
-      const enrollment = {
-        id: `enroll-${Date.now()}`,
-        courseId,
-        studentEmail: email,
-        enrolledAt: new Date().toISOString(),
+      const { data: student } = await supabase.from("users").select("id").eq("email", email).single()
+
+      if (!student) {
+        return NextResponse.json({ error: "Student not found" }, { status: 404 })
       }
+
+      const { data: enrollment, error } = await supabase
+        .from("enrollments")
+        .insert([{ student_id: student.id, course_id }])
+        .select()
+        .single()
+
+      if (error) {
+        return NextResponse.json({ error: "Enrollment failed" }, { status: 400 })
+      }
+
       return NextResponse.json({ success: true, enrollment })
     }
 
     if (method === "bulk" && emails) {
-      const enrollments = emails.map((e: string) => ({
-        id: `enroll-${Date.now()}-${Math.random()}`,
-        courseId,
-        studentEmail: e,
-        enrolledAt: new Date().toISOString(),
+      const { data: students } = await supabase.from("users").select("id").in("email", emails)
+
+      if (!students || students.length === 0) {
+        return NextResponse.json({ error: "No students found" }, { status: 404 })
+      }
+
+      const enrollments = students.map((s) => ({
+        student_id: s.id,
+        course_id,
       }))
-      return NextResponse.json({ success: true, enrollments, count: enrollments.length })
+
+      const { data: results, error } = await supabase.from("enrollments").insert(enrollments).select()
+
+      if (error) {
+        return NextResponse.json({ error: "Bulk enrollment failed" }, { status: 400 })
+      }
+
+      return NextResponse.json({ success: true, enrollments: results, count: results.length })
     }
 
     return NextResponse.json({ error: "Invalid enrollment method" }, { status: 400 })
@@ -38,25 +61,30 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const courseId = request.nextUrl.searchParams.get("courseId")
+    const supabase = await getSupabaseServer()
 
-    const enrollments = [
-      {
-        id: "enroll-1",
-        courseId,
-        studentId: "STU001",
-        studentName: "John Doe",
-        email: "john@example.com",
-        enrolledAt: "2024-11-01",
-      },
-      {
-        id: "enroll-2",
-        courseId,
-        studentId: "STU002",
-        studentName: "Jane Smith",
-        email: "jane@example.com",
-        enrolledAt: "2024-11-02",
-      },
-    ]
+    if (!courseId) {
+      return NextResponse.json({ error: "Course ID required" }, { status: 400 })
+    }
+
+    const { data: enrollments, error } = await supabase
+      .from("enrollments")
+      .select(
+        `
+        id,
+        student_id,
+        enrollment_date,
+        status,
+        users:student_id(full_name, email)
+      `,
+      )
+      .eq("course_id", courseId)
+      .eq("status", "active")
+
+    if (error) {
+      console.error("[v0] Enrollment fetch error:", error)
+      return NextResponse.json({ error: "Failed to fetch enrollments" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, enrollments })
   } catch (error) {
