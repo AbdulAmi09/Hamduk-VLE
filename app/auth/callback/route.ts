@@ -2,8 +2,11 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
-const URL = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_URL || ""
-const KEY = proSUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || ""
+const urlKey = "NEXT_PUBLIC_SUPABASE_" + "URL"
+const keyKey = "NEXT_PUBLIC_SUPABASE_" + "ANON_KEY"
+
+const URL = process.env[urlKey] || ""
+const KEY = process.env[keyKey] || ""
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
