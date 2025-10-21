@@ -2,20 +2,21 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
+const URL = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_URL || ""
+const KEY = proSUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || ""
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get("code")
 
   if (code) {
     const cookieStore = await cookies()
-    const supabaseUrl = process.env.SUPABASE_SUPABASE_NEXT_PUBLIC_SUPABASE_URL || ""
-    const supabaseAnonKey = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || ""
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!URL || !KEY) {
       return NextResponse.redirect(new URL("/", request.url))
     }
 
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createServerClient(URL, KEY, {
       cookies: {
         getAll() {
           return cookieStore.getAll()
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
           } catch {
-            // Handle cookie setting errors
+            // Ignore errors
           }
         },
       },
