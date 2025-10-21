@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
 const URL = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_URL || ""
-const KEY = proSUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || ""
+const KEY = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || ""
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
