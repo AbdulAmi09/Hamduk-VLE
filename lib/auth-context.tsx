@@ -22,21 +22,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClient()
-    if (!supabase) return
+    try {
+      const supabase = createClient()
+      if (!supabase) {
+        console.error("[v0] Supabase client not available")
+        setLoading(false)
+        return
+      }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+      supabase.auth
+        .getSession()
+        .then(({ data: { session } }) => {
+          setUser(session?.user ?? null)
+          setLoading(false)
+        })
+        .catch((err) => {
+          console.error("[v0] Error getting session:", err)
+          setLoading(false)
+        })
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null)
+      })
+
+      return () => subscription.unsubscribe()
+    } catch (err) {
+      console.error("[v0] Auth provider error:", err)
       setLoading(false)
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email: string, password: string, fullName: string, role: "student" | "instructor") => {
@@ -48,21 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: { full_name: fullName, role },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/auth/callback`,
       },
     })
 
     if (error) throw error
 
-    if (data.user) {
-      const { error: profileError } = await supabase.from("users").insert({
-        id: data.user.id,
-        email,
-        full_name: fullName,
-        role,
-      })
-
-      if (profileError) throw profileError
+    // No need to manually insert - Supabase trigger handles it
+    if (!data.user) {
+      throw new Error("User creation failed")
     }
   }
 
@@ -91,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) throw new Error("Supabase client not available")
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/auth/reset-password`,
     })
 
     if (error) throw error

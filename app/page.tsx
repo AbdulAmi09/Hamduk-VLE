@@ -75,7 +75,7 @@ export default function Home() {
       {/* Theme Toggle */}
       <button
         onClick={toggleTheme}
-        className="fixed top-4 right-4 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-md hover:shadow-lg transition-shadow"
+        className="fixed top-4 right-4 p-2 rounded-lg bg-background dark:bg-slate-800 shadow-md hover:shadow-lg transition-shadow"
         aria-label="Toggle theme"
       >
         {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
