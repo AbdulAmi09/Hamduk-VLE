@@ -1,128 +1,76 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin, createAuditLog } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase-client"
+import { dbUtils } from "@/lib/db-utils"
 
-export async function GET(req: NextRequest) {
+/**
+ * GET /api/profiles?userId=...
+ * Get user profile information
+ */
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-    const isPublic = searchParams.get('public') === 'true';
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Missing userId' },
-        { status: 400 }
-      );
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId") || user.id
+
+    // Can only view own profile or if admin
+    if (userId !== user.id) {
+      const role = user.user_metadata?.role || "student"
+      if (!["school_admin", "platform_admin"].includes(role)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
 
-    if (isPublic) {
-      // Get only public profile info
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, bio, xp_points, badges, role, institution_id')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json({ profile });
-    } else {
-      // Get full profile - only if authenticated as same user or admin
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      if (user.id !== userId) {
-        // Check if admin
-        const { data: userRole } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (userRole?.role !== 'admin') {
-          return NextResponse.json(
-            { error: 'Forbidden' },
-            { status: 403 }
-          );
-        }
-      }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json({ profile });
-    }
+    const profile = await dbUtils.getUserById(userId)
+    return NextResponse.json({ profile })
   } catch (error) {
-    console.error('[Profiles GET Error]:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch profile' },
-      { status: 500 }
-    );
+    console.error("[v0] Error fetching profile:", error)
+    return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 })
   }
 }
 
-export async function PUT(req: NextRequest) {
+/**
+ * PUT /api/profiles
+ * Update user profile
+ */
+export async function PUT(request: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { userId, ...updates } = await req.json();
+    const body = await request.json()
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Missing userId' },
-        { status: 400 }
-      );
-    }
-
-    // Verify user can update this profile
-    if (user.id !== userId) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-
-    // Update profile
-    const { error } = await supabase
-      .from('profiles')
+    const { data, error } = await supabase
+      .from("users")
       .update({
-        ...updates,
+        full_name: body.full_name,
+        display_name: body.display_name,
+        bio: body.bio,
+        country: body.country,
+        timezone: body.timezone,
+        language_preference: body.language_preference,
+        linkedin_url: body.linkedin_url,
+        twitter_url: body.twitter_url,
+        website_url: body.website_url,
+        profile_visibility: body.profile_visibility,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', userId);
+      .eq("id", user.id)
+      .select()
+      .single()
 
-    if (error) throw error;
+    if (error) throw error
 
-    // Audit log
-    await createAuditLog({
-      user_id: user.id,
-      action: 'PROFILE_UPDATED',
-      resource_type: 'profiles',
-      resource_id: userId,
-      changes: updates,
-      status: 'success',
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Profile updated successfully',
-    });
+    return NextResponse.json({ profile: data })
   } catch (error) {
-    console.error('[Profiles PUT Error]:', error);
-    return NextResponse.json(
-      { error: 'Failed to update profile' },
-      { status: 500 }
-    );
+    console.error("[v0] Error updating profile:", error)
+    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
   }
 }

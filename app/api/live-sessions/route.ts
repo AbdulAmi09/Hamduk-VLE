@@ -1,129 +1,82 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin, createAuditLog } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase-client"
+import { dbUtils } from "@/lib/db-utils"
 
-export async function GET(req: NextRequest) {
+/**
+ * GET /api/live-sessions?classId=...
+ * Get live sessions for a class
+ */
+export async function GET(request: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const classId = searchParams.get("classId")
+
+    if (!classId) {
+      return NextResponse.json({ error: "classId required" }, { status: 400 })
     }
 
-    const { searchParams } = new URL(req.url);
-    const courseId = searchParams.get('courseId');
-    const status = searchParams.get('status');
-
-    let query = supabase
-      .from('live_sessions')
-      .select('*, instructor:profiles!instructor_id(full_name, avatar_url)');
-
-    if (courseId) {
-      query = query.eq('course_id', courseId);
-    }
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    const { data: sessions, error } = await query
-      .order('scheduled_start', { ascending: true });
-
-    if (error) throw error;
-
-    return NextResponse.json({ sessions });
+    const sessions = await dbUtils.getLiveSessionsByClass(classId)
+    return NextResponse.json({ sessions })
   } catch (error) {
-    console.error('[Live Sessions GET Error]:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch sessions' },
-      { status: 500 }
-    );
+    console.error("[v0] Error fetching live sessions:", error)
+    return NextResponse.json({ error: "Failed to fetch live sessions" }, { status: 500 })
   }
 }
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/live-sessions
+ * Create a live session (tutor only)
+ */
+export async function POST(request: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const role = user.user_metadata?.role || "student"
+    if (!["tutor", "instructor", "school_admin"].includes(role)) {
+      return NextResponse.json({ error: "Only tutors can create sessions" }, { status: 403 })
     }
 
-    const {
-      courseId,
-      title,
-      description,
-      scheduledStart,
-      scheduledEnd,
-      isRecurring,
-      recurrencePattern,
-      maxParticipants,
-    } = await req.json();
+    const body = await request.json()
 
-    if (!courseId || !title || !scheduledStart || !scheduledEnd) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    const { data, error } = await supabase
+      .from("live_sessions")
+      .insert({
+        class_id: body.class_id,
+        title: body.title,
+        description: body.description,
+        session_date: body.session_date,
+        duration_minutes: body.duration_minutes,
+        status: "scheduled",
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Create notifications for all students in the class
+    const classStudents = await dbUtils.getClassStudents(body.class_id)
+    for (const student of classStudents || []) {
+      await dbUtils.createNotification(student.id, {
+        title: "New Live Session",
+        message: `New session "${body.title}" scheduled`,
+        notification_type: "live_session_scheduled",
+        related_resource_id: data.id,
+      })
     }
 
-    // Verify user is instructor
-    const { data: course } = await supabase
-      .from('courses')
-      .select('instructor_id')
-      .eq('id', courseId)
-      .single();
-
-    if (course?.instructor_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-
-    // Generate Daily.co room name
-    const roomName = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-    // Create live session
-    const { error } = await supabaseAdmin
-      .from('live_sessions')
-      .insert([
-        {
-          course_id: courseId,
-          instructor_id: user.id,
-          title,
-          description,
-          scheduled_start: scheduledStart,
-          scheduled_end: scheduledEnd,
-          daily_room_name: roomName,
-          daily_room_url: `https://hamduk.daily.co/${roomName}`,
-          is_recurring: isRecurring || false,
-          recurrence_pattern: recurrencePattern,
-          status: 'scheduled',
-          max_participants: maxParticipants,
-        },
-      ]);
-
-    if (error) throw error;
-
-    // Audit log
-    await createAuditLog({
-      user_id: user.id,
-      action: 'LIVE_SESSION_CREATED',
-      resource_type: 'live_sessions',
-      changes: { courseId, title, roomName },
-      status: 'success',
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Live session created',
-      roomName,
-    });
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('[Live Sessions POST Error]:', error);
-    return NextResponse.json(
-      { error: 'Failed to create live session' },
-      { status: 500 }
-    );
+    console.error("[v0] Error creating live session:", error)
+    return NextResponse.json({ error: "Failed to create live session" }, { status: 500 })
   }
 }

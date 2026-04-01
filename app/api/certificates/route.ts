@@ -1,122 +1,75 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin, createAuditLog } from '@/lib/db';
-import crypto from 'crypto';
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase-client"
+import { dbUtils } from "@/lib/db-utils"
 
-export async function GET(req: NextRequest) {
+/**
+ * GET /api/certificates?studentId=...
+ * Get certificates for a student
+ */
+export async function GET(request: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { searchParams } = new URL(req.url);
-    const courseId = searchParams.get('courseId');
+    const { searchParams } = new URL(request.url)
+    const studentId = searchParams.get("studentId") || user.id
 
-    let query = supabase
-      .from('certificates')
-      .select('*, courses(title)')
-      .eq('student_id', user.id);
-
-    if (courseId) {
-      query = query.eq('course_id', courseId);
-    }
-
-    const { data: certificates, error } = await query
-      .order('issue_date', { ascending: false });
-
-    if (error) throw error;
-
-    return NextResponse.json({ certificates });
+    const certificates = await dbUtils.getStudentCertificates(studentId)
+    return NextResponse.json({ certificates })
   } catch (error) {
-    console.error('[Certificates GET Error]:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch certificates' },
-      { status: 500 }
-    );
+    console.error("[v0] Error fetching certificates:", error)
+    return NextResponse.json({ error: "Failed to fetch certificates" }, { status: 500 })
   }
 }
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/certificates
+ * Issue a certificate (tutor only)
+ */
+export async function POST(request: NextRequest) {
   try {
-    const { studentId, courseId } = await req.json();
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
 
-    if (!studentId || !courseId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const role = user.user_metadata?.role || "student"
+    if (!["tutor", "instructor", "school_admin"].includes(role)) {
+      return NextResponse.json({ error: "Only tutors can issue certificates" }, { status: 403 })
     }
 
-    // Check if student completed course (all assessments graded)
-    const { data: assessments } = await supabase
-      .from('v_assessment_submission_status')
-      .select('*')
-      .eq('course_id', courseId);
+    const body = await request.json()
+    const certificateNumber = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
-    const allGraded = assessments?.every((a) => a.graded === a.total_students);
+    const { data, error } = await supabase
+      .from("certificates")
+      .insert({
+        student_id: body.student_id,
+        class_id: body.class_id,
+        certificate_number: certificateNumber,
+        issue_date: new Date().toISOString(),
+        issued_by: user.id,
+      })
+      .select()
+      .single()
 
-    if (!allGraded) {
-      return NextResponse.json(
-        { error: 'Not all assessments have been graded' },
-        { status: 400 }
-      );
-    }
+    if (error) throw error
 
-    // Check if certificate already exists
-    const { data: existing } = await supabase
-      .from('certificates')
-      .select('id')
-      .eq('student_id', studentId)
-      .eq('course_id', courseId)
-      .single();
+    // Create notification for student
+    await dbUtils.createNotification(body.student_id, {
+      title: "Certificate Earned",
+      message: "You have successfully earned a new certificate!",
+      notification_type: "certificate_earned",
+      related_resource_id: data.id,
+    })
 
-    if (existing) {
-      return NextResponse.json(
-        { error: 'Certificate already exists' },
-        { status: 400 }
-      );
-    }
-
-    // Generate certificate number and verification token
-    const certificateNumber = `HAMDUK-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-
-    // Create certificate
-    const { error } = await supabaseAdmin
-      .from('certificates')
-      .insert([
-        {
-          student_id: studentId,
-          course_id: courseId,
-          certificate_number: certificateNumber,
-          verification_token: verificationToken,
-          public_url: `/certificates/verify/${verificationToken}`,
-          issue_date: new Date().toISOString(),
-        },
-      ]);
-
-    if (error) throw error;
-
-    // Audit log
-    await createAuditLog({
-      action: 'CERTIFICATE_GENERATED',
-      resource_type: 'certificates',
-      resource_id: studentId,
-      changes: { courseId, certificateNumber },
-      status: 'success',
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Certificate generated',
-      certificateNumber,
-    });
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('[Certificates POST Error]:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate certificate' },
-      { status: 500 }
-    );
+    console.error("[v0] Error issuing certificate:", error)
+    return NextResponse.json({ error: "Failed to issue certificate" }, { status: 500 })
   }
 }
