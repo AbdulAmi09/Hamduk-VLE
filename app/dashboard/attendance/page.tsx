@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, XCircle, Clock } from "lucide-react"
 
 interface AttendanceRecord {
@@ -85,7 +83,12 @@ export default function AttendancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.percentage}%</div>
-            <Progress value={stats.percentage} className="mt-2" />
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all"
+                style={{ width: `${stats.percentage}%` }}
+              />
+            </div>
           </CardContent>
         </Card>
 

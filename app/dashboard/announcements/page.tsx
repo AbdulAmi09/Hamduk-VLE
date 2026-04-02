@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Bell, Plus, Trash2, Edit2 } from "lucide-react"
+import { Bell, Plus, Trash2, Edit2, Pin } from "lucide-react"
 
 interface Announcement {
   id: string
