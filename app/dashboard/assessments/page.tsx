@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { FileText, Clock, CheckCircle2 } from "lucide-react"
 
 interface Assessment {
@@ -122,9 +124,9 @@ export default function AssessmentsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium text-white ${getStatusColor(assessment.status)}`}>
+                  <Badge variant={assessment.status === "graded" ? "default" : assessment.status === "completed" ? "secondary" : "outline"}>
                     {assessment.status}
-                  </div>
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -154,12 +156,7 @@ export default function AssessmentsPage() {
                         {assessment.score}/{assessment.total_points}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full transition-all"
-                        style={{ width: `${assessment.percentage || 0}%` }}
-                      />
-                    </div>
+                    <Progress value={assessment.percentage || 0} />
                     <p className="text-xs text-muted-foreground mt-1">{assessment.percentage}%</p>
                   </div>
                 )}

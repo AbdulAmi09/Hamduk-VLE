@@ -194,7 +194,7 @@ export default function ProfilePage() {
             {/* Language */}
             <div>
               <label className="text-sm font-medium text-muted-foreground">Language</label>
-              <Select disabled={!editing} value={formData.language_preference || "en"} onValueChange={(value) =>
+              <Select disabled={!editing} value={formData.language_preference || "en"} onValueChange={(value: string) =>
                 setFormData({ ...formData, language_preference: value })
               }>
                 <SelectTrigger className="mt-2">
@@ -213,7 +213,7 @@ export default function ProfilePage() {
             {/* Visibility */}
             <div>
               <label className="text-sm font-medium text-muted-foreground">Profile Visibility</label>
-              <Select disabled={!editing} value={formData.profile_visibility || "private"} onValueChange={(value) =>
+              <Select disabled={!editing} value={formData.profile_visibility || "private"} onValueChange={(value: string) =>
                 setFormData({ ...formData, profile_visibility: value })
               }>
                 <SelectTrigger className="mt-2">
