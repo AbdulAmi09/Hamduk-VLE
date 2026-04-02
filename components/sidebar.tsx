@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { BookOpen, Users, BarChart3, Settings, LogOut, Menu, X, FileText, Home } from "lucide-react"
+import { BookOpen, Users, BarChart3, Settings, LogOut, Menu, X, FileText, Home, Award, Video, Building2, MessageSquare, Bell, CheckSquare, Clock, Sparkles, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface SidebarProps {
@@ -15,17 +15,40 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
 
   const instructorLinks = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: "/courses", label: "My Courses", icon: BookOpen },
-    { href: "/lectures", label: "Lectures", icon: FileText },
-    { href: "/grades", label: "Grading", icon: BarChart3 },
-    { href: "/students", label: "Students", icon: Users },
+    { href: "/dashboard/classes", label: "My Classes", icon: BookOpen },
+    { href: "/dashboard/lessons", label: "Lessons", icon: FileText },
+    { href: "/dashboard/assignments", label: "Assignments", icon: FileText },
+    { href: "/dashboard/assessments", label: "Assessments", icon: CheckSquare },
+    { href: "/dashboard/grades", label: "Grading", icon: BarChart3 },
+    { href: "/dashboard/attendance", label: "Attendance", icon: Clock },
+    { href: "/dashboard/live-sessions", label: "Live Sessions", icon: Video },
+    { href: "/dashboard/announcements", label: "Announcements", icon: Bell },
+    { href: "/dashboard/certificates", label: "Certificates", icon: Award },
+    { href: "/dashboard/ai-tutor", label: "AI Tutor", icon: Sparkles },
+    { href: "/dashboard/gamification", label: "Gamification", icon: Trophy },
+    { href: "/dashboard/organization", label: "Organization", icon: Building2 },
+    { href: "/dashboard/profile", label: "Profile", icon: Users },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ]
 
   const studentLinks = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: '/courses", label: Enrolled Courses', icon: BookOpen },
-    { href: "/lectures", label: "My Lectures", icon: FileText },
-    { href: "/grades", label: "My Grades", icon: BarChart3 },
+    { href: "/dashboard/classes", label: "Classes", icon: BookOpen },
+    { href: "/dashboard/lessons", label: "Lessons", icon: FileText },
+    { href: "/dashboard/assessments", label: "Assessments", icon: CheckSquare },
+    { href: "/dashboard/assignments", label: "Assignments", icon: FileText },
+    { href: "/dashboard/live-sessions", label: "Live Sessions", icon: Video },
+    { href: "/dashboard/grades", label: "Grades", icon: BarChart3 },
+    { href: "/dashboard/certificates", label: "Certificates", icon: Award },
+    { href: "/dashboard/attendance", label: "Attendance", icon: Clock },
+    { href: "/dashboard/announcements", label: "Announcements", icon: Bell },
+    { href: "/dashboard/discussions", label: "Discussions", icon: MessageSquare },
+    { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+    { href: "/dashboard/ai-tutor", label: "AI Tutor", icon: Sparkles },
+    { href: "/dashboard/gamification", label: "Gamification", icon: Trophy },
+    { href: "/dashboard/institutions", label: "Institutions", icon: Building2 },
+    { href: "/dashboard/profile", label: "Profile", icon: Users },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ]
 
   const adminLinks = [

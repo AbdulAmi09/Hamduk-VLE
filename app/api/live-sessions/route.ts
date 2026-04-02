@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase-client"
 import { dbUtils } from "@/lib/db-utils"
 
 /**
- * GET /api/grades
- * Get grades for user
+ * GET /api/live-sessions?classId=...
+ * Get live sessions for a class
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,26 +21,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "classId required" }, { status: 400 })
     }
 
-    const role = user.user_metadata?.role || "student"
-
-    // Students get their own grades, tutors get class grades
-    let grades
-    if (role === "student") {
-      grades = await dbUtils.getStudentGrades(user.id, classId)
-    } else {
-      grades = await dbUtils.getClassGrades(classId)
-    }
-
-    return NextResponse.json({ grades })
+    const sessions = await dbUtils.getLiveSessionsByClass(classId)
+    return NextResponse.json({ sessions })
   } catch (error) {
-    console.error("[v0] Error fetching grades:", error)
-    return NextResponse.json({ error: "Failed to fetch grades" }, { status: 500 })
+    console.error("[v0] Error fetching live sessions:", error)
+    return NextResponse.json({ error: "Failed to fetch live sessions" }, { status: 500 })
   }
 }
 
 /**
- * POST /api/grades
- * Record a grade (tutor only)
+ * POST /api/live-sessions
+ * Create a live session (tutor only)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -51,38 +42,41 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const role = user.user_metadata?.role || "student"
-    if (role === "student") {
-      return NextResponse.json({ error: "Students cannot record grades" }, { status: 403 })
+    if (!["tutor", "instructor", "school_admin"].includes(role)) {
+      return NextResponse.json({ error: "Only tutors can create sessions" }, { status: 403 })
     }
 
     const body = await request.json()
 
     const { data, error } = await supabase
-      .from("grades")
+      .from("live_sessions")
       .insert({
         class_id: body.class_id,
-        student_id: body.student_id,
-        assessment_id: body.assessment_id,
-        assessment_type: body.assessment_type,
-        score: body.score,
-        percentage: body.percentage || (body.score / 100) * 100,
+        title: body.title,
+        description: body.description,
+        session_date: body.session_date,
+        duration_minutes: body.duration_minutes,
+        status: "scheduled",
       })
       .select()
       .single()
 
     if (error) throw error
 
-    // Create notification for student
-    await dbUtils.createNotification(body.student_id, {
-      title: "Grade Released",
-      message: `You received a grade on "${body.assessment_title}"`,
-      notification_type: "grade_released",
-      related_resource_id: body.assessment_id,
-    })
+    // Create notifications for all students in the class
+    const classStudents = await dbUtils.getClassStudents(body.class_id)
+    for (const student of classStudents || []) {
+      await dbUtils.createNotification(student.id, {
+        title: "New Live Session",
+        message: `New session "${body.title}" scheduled`,
+        notification_type: "live_session_scheduled",
+        related_resource_id: data.id,
+      })
+    }
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error("[v0] Error recording grade:", error)
-    return NextResponse.json({ error: "Failed to record grade" }, { status: 500 })
+    console.error("[v0] Error creating live session:", error)
+    return NextResponse.json({ error: "Failed to create live session" }, { status: 500 })
   }
 }
