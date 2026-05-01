@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, createAuditLog } from '@/lib/db';
-import { speakeasy } from 'speakeasy';
+import speakeasy from 'speakeasy';
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify TOTP token
-    const verified = speakeasy.totp.verify({
+    const verified = speakeasy.verify({
       secret: twoFactor.secret_key,
       encoding: 'base32',
       token,

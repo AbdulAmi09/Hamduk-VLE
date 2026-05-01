@@ -7,6 +7,7 @@ const KEY = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || ""
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const baseUrl = request.url.split(pathname)[0]
 
   const publicRoutes = ["/", "/auth/forgot-password", "/auth/reset-password", "/auth/callback"]
 
@@ -19,7 +20,7 @@ export async function middleware(request: NextRequest) {
       const cookieStore = await cookies()
 
       if (!URL || !KEY) {
-        return NextResponse.redirect(new URL("/", request.url))
+        return NextResponse.redirect(`${baseUrl}/`)
       }
 
       const supabase = createServerClient(URL, KEY, {
@@ -42,11 +43,11 @@ export async function middleware(request: NextRequest) {
       } = await supabase.auth.getSession()
 
       if (!session) {
-        return NextResponse.redirect(new URL("/", request.url))
+        return NextResponse.redirect(`${baseUrl}/`)
       }
     } catch (error) {
       console.error("Auth error:", error)
-      return NextResponse.redirect(new URL("/", request.url))
+      return NextResponse.redirect(`${baseUrl}/`)
     }
   }
 

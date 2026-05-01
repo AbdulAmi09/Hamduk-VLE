@@ -12,7 +12,7 @@ export default function AssignmentsPage() {
   const { user } = useAuth()
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<"all" | "pending" | "submitted" | "graded">("all")
+  const [filter, setFilter] = useState<"all" | "pending" | "submitted" | "graded" | "overdue">("all")
 
   useEffect(() => {
     if (!user) return

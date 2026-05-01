@@ -48,6 +48,7 @@ export default function SettingsPage() {
   }, [])
 
   const handleSettingChange = async (key: keyof Settings, value: boolean) => {
+    if (!settings) return
     const updated = { ...settings, [key]: value }
     setSettings(updated)
 

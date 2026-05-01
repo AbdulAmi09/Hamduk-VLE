@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase-client"
-import * as speakeasy from "speakeasy"
+import speakeasy from "speakeasy"
 import QRCode from "qrcode"
 
 /**
