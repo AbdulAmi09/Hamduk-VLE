@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase-client"
-import * as speakeasy from "speakeasy"
+import speakeasy from "speakeasy"
 
 /**
  * POST /api/auth/2fa-verify
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify code
-    const isValid = speakeasy.totp.verify({
+    const isValid = speakeasy.verify({
       secret: twoFactorSettings.secret_key,
       encoding: "base32",
       token: code,

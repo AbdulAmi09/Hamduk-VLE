@@ -50,10 +50,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       metrics: {
-        totalUsers: users[3] || 0,
-        totalCourses: courses[3] || 0,
-        totalAssessments: assessments[3] || 0,
-        totalInstitutions: institutions[3] || 0,
+        totalUsers: users.count || 0,
+        totalCourses: courses.count || 0,
+        totalAssessments: assessments.count || 0,
+        totalInstitutions: institutions.count || 0,
         totalRevenue,
         paymentsCount: payments?.length || 0,
       },

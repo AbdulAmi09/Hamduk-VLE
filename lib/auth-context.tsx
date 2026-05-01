@@ -32,18 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       supabase.auth
         .getSession()
-        .then(({ data: { session } }) => {
+        .then(({ data: { session } }: any) => {
           setUser(session?.user ?? null)
           setLoading(false)
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error("[v0] Error getting session:", err)
           setLoading(false)
         })
 
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
+      } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
         setUser(session?.user ?? null)
       })
 

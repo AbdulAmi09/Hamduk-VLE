@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
 
     // Store payment record in database
     const supabase = await getSupabaseServer()
-    const { data: user } = await supabase.auth.admin.getUserById(email)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (user) {
+    if (user && !authError) {
       await supabase.from("payments").insert({
         user_id: user.id,
         course_id,

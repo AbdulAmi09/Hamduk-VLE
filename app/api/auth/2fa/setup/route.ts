@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, createAuditLog } from '@/lib/db';
-import { speakeasy, QRCode } from 'speakeasy';
+import speakeasy from 'speakeasy';
+import QRCode from 'qrcode';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Generate QR code
-    const qrCode = await QRCode.toDataURL(secret.otpauth_url || '');
+    const qrCode = await QRCode.toDataURL(secret.otpauth_url);
 
     // Generate backup codes
     const backupCodes = Array.from({ length: 10 }, () =>

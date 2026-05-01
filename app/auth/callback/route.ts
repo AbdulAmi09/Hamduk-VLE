@@ -2,40 +2,45 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
-const urlKey = "NEXT_PUBLIC_SUPABASE_" + "URL"
-const keyKey = "NEXT_PUBLIC_SUPABASE_" + "ANON_KEY"
-
-const URL = process.env[urlKey] || ""
-const KEY = process.env[keyKey] || ""
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const code = searchParams.get("code")
+  try {
+    const requestUrl = request.url
+    const url = new (global.URL || URL)(requestUrl)
+    const { searchParams } = url
+    const origin = url.origin
+    const code = searchParams.get("code")
 
-  if (code) {
-    const cookieStore = await cookies()
+    if (code) {
+      const cookieStore = await cookies()
 
-    if (!URL || !KEY) {
-      return NextResponse.redirect(new URL("/", request.url))
+      if (!SUPABASE_URL || !SUPABASE_KEY) {
+        return NextResponse.redirect(`${origin}/`)
+      }
+
+      const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+            } catch {
+              // Ignore errors
+            }
+          },
+        },
+      })
+
+      await supabase.auth.exchangeCodeForSession(code)
     }
 
-    const supabase = createServerClient(URL, KEY, {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {
-            // Ignore errors
-          }
-        },
-      },
-    })
-
-    await supabase.auth.exchangeCodeForSession(code)
+    return NextResponse.redirect(`${origin}/dashboard`)
+  } catch (error) {
+    console.error("[v0] Auth callback error:", error)
+    return NextResponse.redirect(new URL("/", "http://localhost:3000").toString())
   }
-
-  return NextResponse.redirect(new URL("/dashboard", request.url))
 }
