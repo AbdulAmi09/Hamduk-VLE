@@ -114,7 +114,10 @@ export async function PUT(request: NextRequest) {
         description: body.description,
         code: body.code,
         category: body.category,
+        visibility: body.visibility,
         status: body.status,
+        start_date: body.start_date,
+        end_date: body.end_date,
         updated_at: new Date().toISOString(),
       })
       .eq("id", body.classId)
@@ -127,5 +130,46 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("[v0] Error updating class:", error)
     return NextResponse.json({ error: "Failed to update class" }, { status: 500 })
+  }
+}
+
+/**
+ * DELETE /api/classes
+ * Delete a class
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = createClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase unavailable" }, { status: 500 })
+
+    const { user } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const body = await request.json()
+    const { classId } = body
+
+    if (!classId) {
+      return NextResponse.json({ error: "classId required" }, { status: 400 })
+    }
+
+    // Verify user is class creator
+    const { data: classData } = await supabase.from("classes").select("created_by").eq("id", classId).single()
+
+    if (classData?.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Delete all enrollments first
+    await supabase.from("class_enrollments").delete().eq("class_id", classId)
+
+    // Delete the class
+    const { error } = await supabase.from("classes").delete().eq("id", classId)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, message: "Class deleted" })
+  } catch (error) {
+    console.error("[v0] Error deleting class:", error)
+    return NextResponse.json({ error: "Failed to delete class" }, { status: 500 })
   }
 }
