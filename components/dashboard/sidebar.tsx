@@ -17,6 +17,9 @@ import {
   Zap,
   Award,
   GraduationCap,
+  HelpCircle,
+  CheckSquare,
+  PenTool,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
@@ -41,6 +44,8 @@ export function Sidebar({ userRole }: SidebarProps) {
     const studentItems = [
       { href: "/dashboard/classes", label: "My Classes", icon: BookOpen },
       { href: "/dashboard/assignments", label: "Assignments", icon: FileText },
+      { href: "/dashboard/quizzes", label: "Quizzes", icon: CheckSquare },
+      { href: "/dashboard/quizzes/attempts", label: "My Quiz History", icon: BarChart3 },
       { href: "/dashboard/grades", label: "Grades", icon: BarChart3 },
       { href: "/dashboard/certificates", label: "Certificates", icon: GraduationCap },
     ]
@@ -49,6 +54,9 @@ export function Sidebar({ userRole }: SidebarProps) {
       { href: "/dashboard/classes", label: "My Classes", icon: BookOpen },
       { href: "/dashboard/students", label: "Students", icon: Users },
       { href: "/dashboard/submissions", label: "Submissions", icon: FileText },
+      { href: "/dashboard/questions", label: "Question Bank", icon: HelpCircle },
+      { href: "/dashboard/quizzes", label: "Quizzes", icon: CheckSquare },
+      { href: "/dashboard/quizzes/grade", label: "Grade Submissions", icon: PenTool },
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/dashboard/live-sessions", label: "Live Sessions", icon: Clock },
     ]
@@ -58,6 +66,8 @@ export function Sidebar({ userRole }: SidebarProps) {
       { href: "/dashboard/staff", label: "Staff", icon: Users },
       { href: "/dashboard/students", label: "Students", icon: Users },
       { href: "/dashboard/classes", label: "Classes", icon: BookOpen },
+      { href: "/dashboard/questions", label: "Question Bank", icon: HelpCircle },
+      { href: "/dashboard/quizzes", label: "Quizzes", icon: CheckSquare },
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/dashboard/billing", label: "Billing", icon: FileText },
     ]
