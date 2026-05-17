@@ -6,7 +6,7 @@
 - `/scripts/migrations.sql` (512 lines) - Complete database schema with 29 new tables
 - `/scripts/run-migrations.mjs` (85 lines) - Migration runner script
 - `/lib/db.ts` (276 lines) - Database utilities, types, and helper functions
-
+ 
 ### API Routes (40+ endpoints)
 
 **Authentication:**
