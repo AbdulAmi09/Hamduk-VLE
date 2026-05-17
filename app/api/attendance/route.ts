@@ -3,11 +3,25 @@ import { getSupabaseServer } from "@/lib/supabase-server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { lecture_id, student_id, watched_duration_minutes } = await request.json()
+    const body = await request.json()
+    const { lecture_id, lessonId, student_id, watched_duration_minutes } = body
     const supabase = await getSupabaseServer()
 
-    if (!lecture_id || !student_id) {
-      return NextResponse.json({ error: "Lecture ID and Student ID required" }, { status: 400 })
+    // Support both lecture_id and lessonId (for lesson player)
+    const actualLectureId = lecture_id || lessonId
+
+    if (!actualLectureId) {
+      return NextResponse.json({ error: "Lecture ID or lesson ID required" }, { status: 400 })
+    }
+
+    // Get current user if student_id not provided
+    let userId = student_id
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+      userId = user.id
     }
 
     const { data: attendance, error } = await supabase
@@ -15,9 +29,11 @@ export async function POST(request: NextRequest) {
       .upsert(
         [
           {
-            lecture_id,
-            student_id,
-            watched_duration_minutes,
+            lecture_id: actualLectureId,
+            student_id: userId,
+            watched_duration_minutes: watched_duration_minutes || 0,
+            attended: true,
+            marked_at: new Date().toISOString(),
           },
         ],
         { onConflict: "lecture_id,student_id" },
