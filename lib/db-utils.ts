@@ -72,24 +72,60 @@ export const dbUtils = {
     const supabase = createClient()
     if (!supabase) throw new Error("Supabase client not available")
 
-    let query = supabase.from("classes").select(
-      `
-      *,
-      created_by_user:created_by(full_name),
-      modules(count)
-    `,
-    )
-
     if (role === "student") {
-      query = query.join("class_enrollments", "classes.id", "class_enrollments.class_id").eq("class_enrollments.student_id", userId)
-    } else if (role === "tutor") {
-      query = query.eq("created_by", userId)
+      // Get enrollments first, then fetch classes
+      const { data: enrollments, error: enrollError } = await supabase
+        .from("class_enrollments")
+        .select("class_id")
+        .eq("student_id", userId)
+
+      if (enrollError) throw enrollError
+
+      const classIds = enrollments?.map((e: any) => e.class_id) || []
+      if (classIds.length === 0) return []
+
+      const { data, error } = await supabase
+        .from("classes")
+        .select(
+          `
+          *,
+          created_by_user:created_by(full_name),
+          modules(count)
+        `,
+        )
+        .in("id", classIds)
+
+      if (error) throw error
+      return data || []
+    } else if (role === "tutor" || role === "admin") {
+      const { data, error } = await supabase
+        .from("classes")
+        .select(
+          `
+          *,
+          created_by_user:created_by(full_name),
+          modules(count)
+        `,
+        )
+        .eq("created_by", userId)
+
+      if (error) throw error
+      return data || []
+    } else {
+      // super_admin sees all
+      const { data, error } = await supabase
+        .from("classes")
+        .select(
+          `
+          *,
+          created_by_user:created_by(full_name),
+          modules(count)
+        `,
+        )
+
+      if (error) throw error
+      return data || []
     }
-
-    const { data, error } = await query
-
-    if (error) throw error
-    return data || []
   },
 
   async createClass(classData: {

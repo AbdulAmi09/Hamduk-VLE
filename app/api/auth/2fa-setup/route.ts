@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Store temporary secret in session (don't enable yet)
     const { error: updateError } = await supabase
-      .from("two_factor_settings")
+      .from("two_factor_auth")
       .upsert({
         user_id: user.id,
         secret_key: secret.base32,

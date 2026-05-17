@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's 2FA settings
     const { data: twoFactorSettings, error: fetchError } = await supabase
-      .from("two_factor_settings")
+      .from("two_factor_auth")
       .select("*")
       .eq("user_id", user.id)
       .single()
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Enable 2FA
     const { error: updateError } = await supabase
-      .from("two_factor_settings")
+      .from("two_factor_auth")
       .update({
         is_enabled: true,
         backup_codes: backupCodes,
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { data: twoFactorSettings } = await supabase
-      .from("two_factor_settings")
+      .from("two_factor_auth")
       .select("is_enabled")
       .eq("user_id", user.id)
       .single()
